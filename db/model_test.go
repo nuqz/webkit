@@ -4,35 +4,34 @@ import (
 	"testing"
 )
 
-func Test__NewIN(t *testing.T) {
-	in := NewIN()
+func Test__NewM(t *testing.T) {
+	in := NewM()
 
 	if in.isNew != true {
 		t.Error("should set isNew to true")
 	}
 }
 
-func Test__IN_IsNew(t *testing.T) {
-	in := NewIN()
-
-	if !in.IsNew() {
+func Test__M_IsNew_and_Store(t *testing.T) {
+	m := NewM()
+	if !m.IsNew() {
 		t.Error("should return true when model is new")
 	}
 
-	in.isNew = false
-	if in.IsNew() {
+	if m.Store(); m.IsNew() {
 		t.Error("should return false when model is not new")
 	}
 }
 
 type testModel struct {
-	*IN
+	*M
 	ID int64
+	A  int
 }
 
-func newTestModel() Model {
+func newTestModel() *testModel {
 	m := new(testModel)
-	m.IN = NewIN()
+	m.M = NewM()
 	return m
 }
 
@@ -40,23 +39,63 @@ func (m *testModel) PK() (string, interface{}) {
 	return "id", m.ID
 }
 
-func Test__Model(t *testing.T) {
-	var mi = newTestModel()
-	m := mi.(*testModel)
+func (m *testModel) AsMap() map[string]interface{} {
+	return map[string]interface{}{
+		"id": m.ID,
+		"a":  m.A,
+	}
+}
 
-	m.ID = 5
-	if id, v := mi.PK(); id != "id" {
-		t.Error("should return primary key name")
-	} else if v.(int64) != 5 {
-		t.Error("should return primary key value")
+func Test__Div(t *testing.T) {
+	ms := make([]Model, 0, 65535)
+	cp := cap(ms)
+	newMsExp, exMsExp := make([]Model, 0, 1+cp%2), make([]Model, 0, cp%2)
+
+	for id := 1; id <= cp; id++ {
+		m := &testModel{NewM(), int64(id), id}
+		ms = append(ms, m)
+		if id%2 == 0 {
+			ms[len(ms)-1].Store()
+			exMsExp = append(exMsExp, m)
+		} else {
+			newMsExp = append(newMsExp, m)
+		}
 	}
 
-	if !mi.IsNew() {
-		t.Error("should return true when model is new")
+	newMs, exMs := NewAndExisting(ms)
+
+	for _, ms := range [][][]Model{{newMs, newMsExp}, {exMs, exMsExp}} {
+		act, exp := ms[0], ms[1]
+		if len(act) != len(exp) {
+			t.Errorf("expected %d models, but got %d", len(exp), len(act))
+		}
+
+		for i := range exp {
+			if act[i] != exp[i] {
+				t.Errorf("expected model %p, but got %p", exp[i], act[i])
+			}
+		}
+	}
+}
+
+func Test__PKs(t *testing.T) {
+	ln := 65535
+	ms, pksExp := make([]Model, 0, ln), make([]interface{}, 0, ln)
+
+	for id := 1; id <= ln; id++ {
+		m := &testModel{NewM(), int64(id), id}
+		ms = append(ms, m)
+		_, pkv := m.PK()
+		pksExp = append(pksExp, pkv)
+		m.Store()
 	}
 
-	m.isNew = false
-	if mi.IsNew() {
-		t.Error("should return false when model is not new")
+	pks := PKs(ms)
+
+	for i := range pksExp {
+		if pks[i].(int64) != pksExp[i].(int64) {
+			t.Errorf("expected pk %d, but got %d", pksExp[i].(int64),
+				pks[i].(int64))
+		}
 	}
 }
