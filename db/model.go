@@ -1,5 +1,20 @@
 package db
 
+// Model is the interface that wraps IsNewer and PKer interfaces.
+// Almost in every case we should know whether the model is new and also to know
+// primary key's name and value.
+type Model interface {
+	PKer
+	Storable
+}
+
+// PKer is the interface that wraps PK method.
+// PK returns primary key column (field, attribute, etc...) name as string and
+// it's value as empty interface.
+type PKer interface {
+	PK() (string, interface{})
+}
+
 // Storable is the interface that wraps IsNew and Store methods.
 //
 // IsNew returns true if model is not stored in the database, otherwise it
@@ -24,18 +39,3 @@ func (s *S) IsNew() bool { return s.isNew }
 
 // Store implements Storable interface.
 func (s *S) Store() { s.isNew = false }
-
-// PKer is the interface that wraps PK method.
-// PK returns primary key column (field, attribute, etc...) name as string and
-// it's value as empty interface.
-type PKer interface {
-	PK() (string, interface{})
-}
-
-// Model is the interface that wraps IsNewer and PKer interfaces.
-// Almost in every case we should know whether the model is new and also to know
-// primary key's name and value.
-type Model interface {
-	Storable
-	PKer
-}
